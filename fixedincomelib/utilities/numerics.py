@@ -95,20 +95,105 @@ class Interpolator1DPCP(Interpolator1D):
         assert self.extrap_method_ == ExtrapMethod.FLAT
 
     def interpolate(self, x: float) -> float:
-        ### TODO
-        pass
+        if x < self.axis1_[0]:
+            return self.values_[0]
+        if x >= self.axis1_[-1]:
+            return self.values_[-1]
+        k = int(np.searchsorted(self.axis1_,x,side="right"))
+        return self.values_[k]
     
     def gradient_wrt_ordinate(self, x : float):
-        ### TODO
-        pass
+        grad = np.zeros(self.length_, dtype=float)
+        if x < self.axis1_[0]:
+            grad[0] = 1.0
+            return grad
+        if x >= self.axis1_[-1]:
+            grad[-1] = 1.0
+            return grad
+        k = int(np.searchsorted(self.axis1_,x,side="right"))
+        grad[k] = 1.0
+        return grad
 
     def integrate(self, start_x : float, end_x : float):
-        ### TODO
-        pass
+        if self.length_==1:
+            return self.values_[0] * (end_x - start_x)
+        
+        if start_x == end_x:
+            return 0.0
+        
+        # direction
+        sign = 1.0
+        a = float(start_x)
+        b = float(end_x)
+        if a > b:
+            a,b = b,a
+            sign = -1.0
+
+        # calculate from left to right
+        total = 0.0
+        if a < self.axis1_[0]:
+            total += self.values_[0] * (min(b,self.axis1_[0]) - a)
+            a = min(b,self.axis1_[0])
+        
+        if a < b and a < self.axis1_[-1]:
+            i = int(np.searchsorted(self.axis1_, a, side="right"))
+            if i < 1:
+                i=1
+            if i > (self.length_-1):
+                i = self.length_ -1
+            while a < b and i <= (self.length_-1):
+                seg_end = self.axis1_[i]
+                total += self.values_[i] * (min(b,seg_end) - a)
+                a = min(b,seg_end)
+                if a>=b or a>=self.axis1_[-1]:
+                    break
+                i+=1
+        
+        if a < b and a >= self.axis1_[-1]:
+            total += self.values_[-1] * (b-a)
+        
+        return total * sign
 
     def gradient_of_integrated_value_wrt_ordinate(self, start_x : float, end_x : float):
-        ### TODO
-        pass
+        grad = np.zeros(self.length_,dtype=float)
+        if self.length_==1:
+            grad[0] = (end_x - start_x)
+            return grad
+        
+        if start_x == end_x:
+            return grad
+        
+        # direction
+        sign = 1.0
+        a = float(start_x)
+        b = float(end_x)
+        if a > b:
+            a,b = b,a
+            sign = -1.0
+
+        # calculate from left to right
+        if a < self.axis1_[0]:
+            grad[0] += (min(b, self.axis1_[0]) - a)
+            a = min(b, self.axis1_[0])
+        
+        if a < b and a < self.axis1_[-1]:
+            i = int(np.searchsorted(self.axis1_, a, side="right"))
+            if i < 1:
+                i = 1
+            if i > self.length_ - 1:
+                i = self.length_ - 1
+            while a < b and i <= self.length_ - 1:
+                seg_end = self.axis1_[i]
+                grad[i] += (min(b, seg_end) - a)
+                a = min(b, seg_end)
+                if a>=b or a>=self.axis1_[-1]:
+                    break
+                i += 1
+        
+        if a < b and a >= self.axis1_[-1]:
+            grad[-1] += (b - a)
+
+        return sign * grad
 
 class InterpolatorFactory:
 
